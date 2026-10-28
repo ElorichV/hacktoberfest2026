@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GemmaBench: Medidor de Eficiencia Local con Gemma 4</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Top Navigation & Auth Bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-badge">G4</span>
+      <div>
+        <h1>GemmaBench</h1>
+        <p class="subtitle">Medidor de Eficiencia &amp; Benchmark Real para Gemma 4 Local</p>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="mode-toggle" title="Alterna entre datos de demostración y conexiones reales">
+        <label for="demoModeSwitch">Modo Demo (Sin APIs)</label>
+        <input type="checkbox" id="demoModeSwitch" checked />
+      </div>
+
+      <button id="authBtn" class="btn btn-outline" type="button">
+        <span class="status-dot" id="authDot"></span>
+        <span id="authLabel">Iniciar sesión (MojoAuth)</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Service Integration Status Strip -->
+    <section class="integrations-bar" aria-label="Estado de integraciones del ecosistema">
+      <div class="integration-pill active" data-service="gemma">
+        <span class="pill-dot"></span>
+        <div>
+          <strong>Gemma 4 Local</strong>
+          <small id="statusGemma">Ollama · 127.0.0.1:11434 (Simulado)</small>
+        </div>
+        <span class="tier-tag">Core</span>
+      </div>
+
+      <div class="integration-pill active" data-service="firecrawl">
+        <span class="pill-dot"></span>
+        <div>
+          <strong>Firecrawl</strong>
+          <small id="statusFirecrawl">Extractor de Docs → Prompts</small>
+        </div>
+        <span class="tier-tag">Core</span>
+      </div>
+
+      <div class="integration-pill active" data-service="lovable">
+        <span class="pill-dot"></span>
+        <div>
+          <strong>Dashboard UI</strong>
+          <small>Base lista para Lovable</small>
+        </div>
+        <span class="tier-tag">Core</span>
+      </div>
+
+      <div class="integration-pill optional" data-service="elevenlabs">
+        <span class="pill-dot"></span>
+        <div>
+          <strong>ElevenLabs</strong>
+          <small id="statusEleven">Narrador de Demo</small>
+        </div>
+        <span class="tier-tag">Bonus</span>
+      </div>
+
+      <div class="integration-pill optional" data-service="n8n">
+        <span class="pill-dot"></span>
+        <div>
+          <strong>n8n Webhook</strong>
+          <small id="statusN8n">Orquestador de Reportes</small>
+        </div>
+        <span class="tier-tag">Bonus</span>
+      </div>
+    </section>
+
+    <!-- Main 3-Column Workflow -->
+    <div class="workflow-grid">
+      <!-- STEP 1: Firecrawl Ingestion -->
+      <section class="card" aria-labelledby="step1-title">
+        <div class="card-header">
+          <span class="step-number">Paso 1</span>
+          <h2 id="step1-title">Ingesta de Docs (Firecrawl)</h2>
+        </div>
+        <p class="card-desc">
+          Extrae documentación técnica real desde una URL para generar automáticamente el set de prompts del benchmark.
+        </p>
+
+        <form id="firecrawlForm" class="stack-form">
+          <label for="docUrl">URL de Documentación</label>
+          <div class="input-row">
+            <input
+              type="url"
+              id="docUrl"
+              value="https://ai.google.dev/gemma/docs"
+              placeholder="https://docs.ejemplo.com/api"
+              required
+            />
+            <button type="submit" id="scrapeBtn" class="btn btn-primary">
+              Extraer Docs
+            </button>
+          </div>
+
+          <label for="docPreset">O elegir fuente preconfigurada:</label>
+          <select id="docPreset">
+            <option value="gemma">Google Gemma Docs ( Inferencia y Cuantización )</option>
+            <option value="fastapi">FastAPI Docs ( Concurrencia y Rutas Async )</option>
+            <option value="mdn">MDN Web Docs ( WebGPU y Streams API )</option>
+          </select>
+        </form>
+
+        <div class="prompt-preview-box">
+          <div class="box-header">
+            <span>Prompts Generados (<span id="promptCount">3</span>)</span>
+            <span class="badge" id="scrapeBadge">Listo</span>
+          </div>
+          <ul id="promptList" class="prompt-list" aria-live="polite"></ul>
+        </div>
+      </section>
+
+      <!-- STEP 2: Gemma 4 Benchmark Execution -->
+      <section class="card" aria-labelledby="step2-title">
+        <div class="card-header">
+          <span class="step-number">Paso 2</span>
+          <h2 id="step2-title">Ejecución Local (Gemma 4)</h2>
+        </div>
+        <p class="card-desc">
+          Evalúa velocidad, latencia al primer token (TTFT), memoria VRAM y precisión sobre los prompts extraídos.
+        </p>
+
+        <div class="stack-form">
+          <div class="two-cols">
+            <div>
+              <label for="modelVariant">Variante Gemma 4</label>
+              <select id="modelVariant">
+                <option value="gemma4:9b-q4_K_M">gemma4:9b-instruct (Q4_K_M)</option>
+                <option value="gemma4:9b-q8_0">gemma4:9b-instruct (Q8_0)</option>
+                <option value="gemma4:2b-q4_K_M">gemma4:2b-instruct (Q4_K_M)</option>
+                <option value="gemma4:27b-q4_K_M">gemma4:27b-instruct (Q4_K_M)</option>
+              </select>
+            </div>
+            <div>
+              <label for="baselineModel">Comparar contra</label>
+              <select id="baselineModel">
+                <option value="cloud-standard">Modelo Cloud Estándar (API)</option>
+                <option value="gemma3-9b">Gemma 3 9B Local</option>
+                <option value="llama3-8b">Llama 3.1 8B (Q4)</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="button" id="runBenchBtn" class="btn btn-accent btn-block">
+            ▶ Correr Benchmark de Eficiencia
+          </button>
+        </div>
+
+        <div class="progress-wrap" aria-live="polite">
+          <div class="progress-label">
+            <span id="benchPhase">Esperando ejecución...</span>
+            <span id="benchPercent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="benchProgressBar" class="progress-bar-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Live Terminal Log -->
+        <pre id="benchLog" class="terminal-log" aria-label="Registro de ejecución de Gemma 4">[sistema] Gemma 4 local listo en modo boceto.
+[sistema] Presiona "Correr Benchmark de Eficiencia" para evaluar los prompts.</pre>
+      </section>
+
+      <!-- STEP 3: Narration & Orchestration -->
+      <section class="card" aria-labelledby="step3-title">
+        <div class="card-header">
+          <span class="step-number">Paso 3</span>
+          <h2 id="step3-title">Demo &amp; Orquestación</h2>
+        </div>
+        <p class="card-desc">
+          Narra el veredicto en vivo con ElevenLabs para el jurado y dispara el flujo de reporte en n8n.
+        </p>
+
+        <div class="summary-card">
+          <div class="summary-header">
+            <strong>Guion Ejecutivo de Resultados</strong>
+            <span class="badge" id="voiceStatusBadge">Sin narrar</span>
+          </div>
+          <p id="narrationScript" class="narration-text">
+            Ejecuta un benchmark en el Paso 2 para generar el análisis comparativo de eficiencia energética, costo y velocidad de Gemma 4 en local.
+          </p>
+        </div>
+
+        <div class="action-buttons">
+          <button type="button" id="speakBtn" class="btn btn-primary btn-block" disabled>
+            🔊 Narrar Resultado (ElevenLabs)
+          </button>
+          <button type="button" id="n8nBtn" class="btn btn-outline btn-block" disabled>
+            ⚡ Enviar Reporte a n8n + GitHub
+          </button>
+        </div>
+
+        <div id="n8nResultBox" class="webhook-status" hidden></div>
+      </section>
+    </div>
+
+    <!-- KPI Metrics Dashboard -->
+    <section class="metrics-section" aria-labelledby="metrics-title">
+      <div class="section-header">
+        <h2 id="metrics-title">Resultados del Benchmark de Eficiencia</h2>
+        <span id="lastRunMeta" class="meta-text">Aún sin corrida activa</span>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="kpi-card">
+          <span class="kpi-label">Velocidad de Generación</span>
+          <strong class="kpi-value" id="kpiTps">-- tok/s</strong>
+          <span class="kpi-delta positive" id="kpiTpsDelta">Esperando corrida</span>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">Latencia Primer Token (TTFT)</span>
+          <strong class="kpi-value" id="kpiTtft">-- ms</strong>
+          <span class="kpi-delta positive" id="kpiTtftDelta">Sin red externa</span>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">Huella de VRAM Local</span>
+          <strong class="kpi-value" id="kpiVram">-- GB</strong>
+          <span class="kpi-delta" id="kpiVramDelta">Cuantización activa</span>
+        </article>
+
+        <article class="kpi-card highlight">
+          <span class="kpi-label">Score de Eficiencia Gemma 4</span>
+          <strong class="kpi-value" id="kpiScore">-- / 100</strong>
+          <span class="kpi-delta positive" id="kpiSavings">$0.00 costo por 1M tokens</span>
+        </article>
+      </div>
+
+      <!-- Prompt-by-Prompt Breakdown Table -->
+      <div class="table-container">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Prompt (Extraído con Firecrawl)</th>
+              <th>Gemma 4 (tok/s)</th>
+              <th>Baseline (tok/s)</th>
+              <th>TTFT Local</th>
+              <th>Calidad Respuesta</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="resultsTableBody">
+            <tr>
+              <td colspan="6" class="empty-row">
+                Ejecuta el benchmark para ver el desglose por prompt.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- API Connection Config Accordion (For plugging real keys later) -->
+    <details class="config-drawer">
+      <summary>⚙️ Configurar Conexiones Reales (Gemma 4 / Firecrawl / ElevenLabs / MojoAuth / n8n)</summary>
+      <div class="config-grid">
+        <div>
+          <label for="cfgOllamaUrl">Endpoint Ollama (Gemma 4)</label>
+          <input type="text" id="cfgOllamaUrl" value="http://localhost:11434/api/generate" />
+        </div>
+        <div>
+          <label for="cfgFirecrawlKey">Firecrawl API Key</label>
+          <input type="password" id="cfgFirecrawlKey" placeholder="fc-..." />
+        </div>
+        <div>
+          <label for="cfgElevenKey">ElevenLabs API Key</label>
+          <input type="password" id="cfgElevenKey" placeholder="xi-..." />
+        </div>
+        <div>
+          <label for="cfgN8nWebhook">n8n Webhook URL</label>
+          <input type="url" id="cfgN8nWebhook" placeholder="https://n8n.tudominio.com/webhook/gemma-bench" />
+        </div>
+      </div>
+      <p class="config-note">
+        En modo boceto no necesitas llenar estas llaves: el simulador reproduce todo el flujo para presentación. Cuando desactives "Modo Demo", el frontend usará estos endpoints.
+      </p>
+    </details>
+  </main>
+
+  <!-- MojoAuth Passwordless Login Modal -->
+  <dialog id="authModal" class="modal">
+    <form method="dialog" class="modal-content" id="mojoAuthForm">
+      <div class="modal-header">
+        <h3>Acceso Passwordless · MojoAuth</h3>
+        <button type="button" id="closeModalBtn" class="close-btn" aria-label="Cerrar">✕</button>
+      </div>
+      <p>Ingresa tu correo para recibir un Magic Link o código OTP instantáneo.</p>
+      <label for="authEmail">Correo electrónico</label>
+      <input type="email" id="authEmail" placeholder="axel@hackathon.dev" value="axel@hackathon.dev" required />
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary btn-block">Enviar Magic Link (Simulado)</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="footer">
+    <span>GemmaBench Open-Source Prototype (MIT License) · Listo para MLH Best Open-Source</span>
+    <span>Arquitectura: Gemma 4 + Firecrawl + Lovable UI + ElevenLabs + MojoAuth + n8n</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
