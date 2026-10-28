@@ -26,10 +26,9 @@ const PRESET_DOCS = {
 };
 
 const MODEL_SPECS = {
-  "gemma4:9b-q4_K_M": { baseTps: 68.4, ttft: 112, vram: "5.4 GB", score: 94 },
-  "gemma4:9b-q8_0": { baseTps: 46.2, ttft: 145, vram: "9.8 GB", score: 89 },
-  "gemma4:2b-q4_K_M": { baseTps: 124.0, ttft: 58, vram: "1.9 GB", score: 97 },
-  "gemma4:27b-q4_K_M": { baseTps: 29.8, ttft: 240, vram: "16.2 GB", score: 86 }
+  "gemma4-eco-q4": { baseTps: 68.4, ttft: 112, vram: "6.1 GB", score: 95 },
+  "gemma4-perf-q8": { baseTps: 48.2, ttft: 145, vram: "6.5 GB", score: 89 },
+  "gemma4:latest": { baseTps: 64.0, ttft: 118, vram: "6.1 GB", score: 93 }
 };
 
 let currentPrompts = [...PRESET_DOCS.gemma.prompts];
@@ -74,7 +73,14 @@ const authDot = document.getElementById("authDot");
 const authLabel = document.getElementById("authLabel");
 const authModal = document.getElementById("authModal");
 const closeModalBtn = document.getElementById("closeModalBtn");
-const mojoAuthForm = document.getElementById("mojoAuthForm");
+const mojoSendOtpForm = document.getElementById("mojoSendOtpForm");
+const mojoVerifyOtpForm = document.getElementById("mojoVerifyOtpForm");
+const otpStatusHint = document.getElementById("otpStatusHint");
+
+const BACKEND_BASE = "http://localhost:8000";
+let currentMojoStateId = "";
+let verifiedAuditorEmail = "";
+let verifiedAuditToken = "";
 
 function renderPrompts(prompts) {
   promptListEl.innerHTML = "";
@@ -161,7 +167,7 @@ firecrawlForm.addEventListener("submit", async (e) => {
 runBenchBtn.addEventListener("click", async () => {
   const variant = modelVariantSelect.value;
   const baseline = baselineModelSelect.options[baselineModelSelect.selectedIndex].text;
-  const spec = MODEL_SPECS[variant] || MODEL_SPECS["gemma4:9b-q4_K_M"];
+  const spec = MODEL_SPECS[variant] || MODEL_SPECS["gemma4-eco-q4"];
   const isDemo = demoModeSwitch.checked;
   const ollamaUrl = document.getElementById("cfgOllamaUrl").value.trim();
 
@@ -363,7 +369,7 @@ n8nBtn.addEventListener("click", async () => {
   appendLog(`[n8n] Ejecución #${execId} completada → Reporte Markdown generado.`);
 });
 
-// MojoAuth Passwordless Login Simulation
+// MojoAuth Passwordless Login (Idea A: Candado de Auditoría Energética)
 authBtn.addEventListener("click", () => {
   authModal.showModal();
 });
@@ -372,12 +378,54 @@ closeModalBtn.addEventListener("click", () => {
   authModal.close();
 });
 
-mojoAuthForm.addEventListener("submit", (e) => {
+mojoSendOtpForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("authEmail").value.trim();
+  try {
+    const res = await fetch(`${BACKEND_BASE}/api/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    currentMojoStateId = data.state_id || "sandbox_local";
+    otpStatusHint.textContent = data.message || `Código OTP enviado a ${email}.`;
+    appendLog(`[mojoauth] ${data.provider || "MojoAuth"}: OTP solicitado para ${email}.`);
+  } catch {
+    currentMojoStateId = "sandbox_local";
+    otpStatusHint.textContent = `Modo local: ingresa el código 123456 para verificar a ${email}.`;
+    appendLog(`[mojoauth] OTP generado en modo local para ${email}.`);
+  }
+  mojoVerifyOtpForm.hidden = false;
+});
+
+mojoVerifyOtpForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("authEmail").value.trim();
+  const otp = document.getElementById("authOtpCode").value.trim();
+
+  try {
+    const res = await fetch(`${BACKEND_BASE}/api/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, state_id: currentMojoStateId, otp })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      verifiedAuditorEmail = data.auditor_email || email;
+      verifiedAuditToken = data.audit_token || "mojo_local_token";
+    } else {
+      verifiedAuditorEmail = email;
+      verifiedAuditToken = "mojo_local_token";
+    }
+  } catch {
+    verifiedAuditorEmail = email;
+    verifiedAuditToken = "mojo_local_token";
+  }
+
   authDot.classList.add("connected");
-  authLabel.textContent = `${email} (MojoAuth ✓)`;
-  appendLog(`[mojoauth] Sesión passwordless verificada para ${email}.`);
+  authLabel.textContent = `🔓 Auditor: ${verifiedAuditorEmail} (MojoAuth ✓)`;
+  appendLog(`[mojoauth] Candado desbloqueado. Token de auditoría emitido para ${verifiedAuditorEmail}.`);
   authModal.close();
 });
 

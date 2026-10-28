@@ -136,12 +136,11 @@
         <div class="stack-form">
           <div class="two-cols">
             <div>
-              <label for="modelVariant">Variante Gemma 4</label>
+              <label for="modelVariant">Variante Gemma 4 (Ollama Local)</label>
               <select id="modelVariant">
-                <option value="gemma4:9b-q4_K_M">gemma4:9b-instruct (Q4_K_M)</option>
-                <option value="gemma4:9b-q8_0">gemma4:9b-instruct (Q8_0)</option>
-                <option value="gemma4:2b-q4_K_M">gemma4:2b-instruct (Q4_K_M)</option>
-                <option value="gemma4:27b-q4_K_M">gemma4:27b-instruct (Q4_K_M)</option>
+                <option value="gemma4-eco-q4">gemma4-eco-q4 (7.5B · Eco Q4_K_M)</option>
+                <option value="gemma4-perf-q8">gemma4-perf-q8 (7.5B · Perf Q8_0)</option>
+                <option value="gemma4:latest">gemma4:latest (7.5B · Base)</option>
               </select>
             </div>
             <div>
@@ -295,20 +294,30 @@
     </details>
   </main>
 
-  <!-- MojoAuth Passwordless Login Modal -->
+  <!-- MojoAuth Passwordless Login Modal (Candado de Auditoría Energética) -->
   <dialog id="authModal" class="modal">
-    <form method="dialog" class="modal-content" id="mojoAuthForm">
+    <div class="modal-content">
       <div class="modal-header">
-        <h3>Acceso Passwordless · MojoAuth</h3>
+        <h3>🔒 Candado de Auditoría · MojoAuth</h3>
         <button type="button" id="closeModalBtn" class="close-btn" aria-label="Cerrar">✕</button>
       </div>
-      <p>Ingresa tu correo para recibir un Magic Link o código OTP instantáneo.</p>
-      <label for="authEmail">Correo electrónico</label>
-      <input type="email" id="authEmail" placeholder="axel@hackathon.dev" value="axel@hackathon.dev" required />
-      <div class="modal-actions">
-        <button type="submit" class="btn btn-primary btn-block">Enviar Magic Link (Simulado)</button>
-      </div>
-    </form>
+      <p>Verifica tu identidad con Email OTP para desbloquear y firmar las corridas de Gemma 4.</p>
+
+      <!-- Paso A: Enviar correo -->
+      <form id="mojoSendOtpForm" class="stack-form">
+        <label for="authEmail">Correo del Auditor</label>
+        <input type="email" id="authEmail" placeholder="axel@hackathon.dev" value="axel@hackathon.dev" required />
+        <button type="submit" class="btn btn-primary btn-block">1. Enviar Código OTP (MojoAuth)</button>
+      </form>
+
+      <!-- Paso B: Verificar OTP de 6 dígitos -->
+      <form id="mojoVerifyOtpForm" class="stack-form" hidden>
+        <label for="authOtpCode">Código OTP de 6 dígitos</label>
+        <input type="text" id="authOtpCode" placeholder="123456" value="123456" maxlength="8" required />
+        <small id="otpStatusHint" class="meta-text"></small>
+        <button type="submit" class="btn btn-accent btn-block">2. Verificar y Desbloquear Benchmark</button>
+      </form>
+    </div>
   </dialog>
 
   <footer class="footer">
