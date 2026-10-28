@@ -1,7 +1,20 @@
+# Secretos y variables de entorno locales (NUNCA se suben al repositorio público)
 .env
-.env.local
+.env.*
+*.env
+backend/.env
+backend/.env.*
+!.env.example
+!backend/.env.example
+.secrets*
+*.pem
+*.key
+
+# Archivos de ejecución y caché
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
 node_modules/
 .DS_Store
 Thumbs.db
